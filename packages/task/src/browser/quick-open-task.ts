@@ -236,8 +236,10 @@ export class TaskRunQuickOpenItem extends QuickOpenGroupItem {
         }
 
         if (ContributedTaskConfiguration.is(this.task)) {
+            console.log('////////////// run ' + JSON.stringify(this.task));
             this.taskService.run(this.task._source, this.task.label);
         } else {
+            console.log('////////////// run cinfigured task' + JSON.stringify(this.task));
             this.taskService.runConfiguredTask(this.task._source, this.task.label);
         }
 

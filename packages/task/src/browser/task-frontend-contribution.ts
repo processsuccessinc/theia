@@ -112,8 +112,8 @@ export class TaskFrontendContribution implements CommandContribution, MenuContri
     }
 
     onStop(): void {
-        const recent = this.taskService.getRecentTasks();
-        this.storageService.setData<{ recent: TaskConfiguration[] }>(TASKS_STORAGE_KEY, { recent });
+        // const recent = [];
+        this.storageService.setData<{ recent: TaskConfiguration[] }>(TASKS_STORAGE_KEY, { recent: [] });
     }
 
     registerCommands(registry: CommandRegistry): void {
