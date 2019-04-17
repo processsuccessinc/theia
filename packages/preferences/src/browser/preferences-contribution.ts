@@ -68,7 +68,7 @@ export class PreferencesContribution extends AbstractViewContribution<Preference
     }
 
     protected async openPreferences(preferenceScope: PreferenceScope): Promise<void> {
-        const wsUri = await this.workspacePreferenceProvider.getUri();
+        const wsUri = this.workspacePreferenceProvider.getUri();
         if (wsUri && !await this.filesystem.exists(wsUri.toString())) {
             await this.filesystem.createFile(wsUri.toString());
         }

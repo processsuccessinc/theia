@@ -19,7 +19,6 @@ import { inject, injectable, interfaces, named, postConstruct } from 'inversify'
 import { ContributionProvider, bindContributionProvider, escapeRegExpCharacters, Emitter, Event } from '../../common';
 import { PreferenceScope } from './preference-scope';
 import { PreferenceProvider, PreferenceProviderPriority, PreferenceProviderDataChange } from './preference-provider';
-import { IJSONSchema } from '../../common/json-schema';
 
 import {
     PreferenceSchema, PreferenceSchemaProperties, PreferenceDataSchema, PreferenceItem, PreferenceSchemaProperty, PreferenceDataProperty, JsonType
@@ -67,7 +66,6 @@ export class PreferenceSchemaProvider extends PreferenceProvider {
 
     protected readonly preferences: { [name: string]: any } = {};
     protected readonly combinedSchema: PreferenceDataSchema = { properties: {}, patternProperties: {} };
-    private remoteSchemas: IJSONSchema[] = [];
 
     @inject(ContributionProvider) @named(PreferenceContribution)
     protected readonly preferenceContributions: ContributionProvider<PreferenceContribution>;
@@ -133,7 +131,7 @@ export class PreferenceSchemaProvider extends PreferenceProvider {
     }
 
     protected doSetSchema(schema: PreferenceSchema): PreferenceProviderDataChange[] {
-        const scope = this.getScope();
+        const scope = PreferenceScope.Default;
         const domain = this.getDomain();
         const changes: PreferenceProviderDataChange[] = [];
         const defaultScope = PreferenceSchema.getDefaultScope(schema);
@@ -150,6 +148,7 @@ export class PreferenceSchemaProvider extends PreferenceProvider {
                     this.overridePatternProperties.properties[preferenceName] = schemaProps;
                 }
                 this.combinedSchema.properties[preferenceName] = schemaProps;
+                this.unsupportedPreferences.delete(preferenceName);
 
                 const value = schemaProps.default = this.getDefaultValue(schemaProps, preferenceName);
                 if (this.testOverrideValue(preferenceName, value)) {
@@ -204,39 +203,42 @@ export class PreferenceSchemaProvider extends PreferenceProvider {
     }
 
     protected updateValidate(): void {
-        this.validateFunction = new Ajv({ schemas: this.remoteSchemas }).compile(this.combinedSchema);
+        const schema = {
+            ...this.combinedSchema,
+            properties: {
+                ...this.combinedSchema.properties
+            }
+        };
+        delete schema.properties['launch'];
+        this.validateFunction = new Ajv().compile(schema);
     }
 
+    protected readonly unsupportedPreferences = new Set<string>();
     validate(name: string, value: any): boolean {
-        return this.validateFunction({ [name]: value }) as boolean;
+        if (name === 'launch') {
+            return true;
+        }
+        const result = this.validateFunction({ [name]: value }) as boolean;
+        if (!result && !(name in this.combinedSchema.properties)) {
+            // in order to avoid reporting it on each change in .vscode folder
+            if (!this.unsupportedPreferences.has(name)) {
+                this.unsupportedPreferences.add(name);
+                console.warn(`Please file an issue to support "${name}" preference`);
+            }
+            // in case if preferences are loaded from .vscode folder we should load even invalid
+            return true;
+        }
+        return result;
     }
 
     getCombinedSchema(): PreferenceDataSchema {
         return this.combinedSchema;
     }
 
-    setSchema(schema: PreferenceSchema, remoteSchema?: IJSONSchema): void {
+    setSchema(schema: PreferenceSchema): void {
         const changes = this.doSetSchema(schema);
-        if (remoteSchema) {
-            this.doSetRemoteSchema(remoteSchema);
-        }
         this.fireDidPreferenceSchemaChanged();
         this.emitPreferencesChangedEvent(changes);
-    }
-
-    protected doSetRemoteSchema(schema: IJSONSchema): void {
-        // remove existing remote schema if any
-        const existingSchemaIndex = this.remoteSchemas.findIndex(s => !!s.$id && !!s.$id && s.$id !== s.$id);
-        if (existingSchemaIndex) {
-            this.remoteSchemas.splice(existingSchemaIndex, 1);
-        }
-
-        this.remoteSchemas.push(schema);
-    }
-
-    setRemoteSchema(schema: IJSONSchema): void {
-        this.doSetRemoteSchema(schema);
-        this.fireDidPreferenceSchemaChanged();
     }
 
     getPreferences(): { [name: string]: any } {
@@ -300,6 +302,9 @@ export class PreferenceSchemaProvider extends PreferenceProvider {
     }
 
     testOverrideValue(name: string, value: any): value is PreferenceSchemaProperties {
+        if (name === 'launch') {
+            return false;
+        }
         return PreferenceSchemaProperties.is(value) && OVERRIDE_PROPERTY_PATTERN.test(name);
     }
 }

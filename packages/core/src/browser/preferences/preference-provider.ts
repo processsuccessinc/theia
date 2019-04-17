@@ -47,9 +47,6 @@ export abstract class PreferenceProvider implements Disposable {
     protected readonly onDidPreferencesChangedEmitter = new Emitter<PreferenceProviderDataChanges | undefined>();
     readonly onDidPreferencesChanged: Event<PreferenceProviderDataChanges | undefined> = this.onDidPreferencesChangedEmitter.event;
 
-    protected readonly onDidInvalidPreferencesReadEmitter = new Emitter<{ [key: string]: any }>();
-    readonly onDidInvalidPreferencesRead: Event<{ [key: string]: any }> = this.onDidInvalidPreferencesReadEmitter.event;
-
     protected readonly toDispose = new DisposableCollection();
 
     /**
@@ -116,7 +113,4 @@ export abstract class PreferenceProvider implements Disposable {
         return [];
     }
 
-    protected getScope() {
-        return PreferenceScope.Default;
-    }
 }

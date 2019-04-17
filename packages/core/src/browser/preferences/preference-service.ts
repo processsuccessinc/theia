@@ -90,6 +90,14 @@ export interface PreferenceService extends Disposable {
     set(preferenceName: string, value: any, scope?: PreferenceScope, resourceUri?: string): Promise<void>;
     onPreferenceChanged: Event<PreferenceChange>;
 
+    inspect<T>(preferenceName: string, resourceUri?: string): {
+        preferenceName: string,
+        defaultValue: T | undefined,
+        globalValue: T | undefined, // User Preference
+        workspaceValue: T | undefined, // Workspace Preference
+        workspaceFolderValue: T | undefined // Folder Preference
+    } | undefined;
+
     overridePreferenceName(options: OverridePreferenceName): string;
     overridenPreferenceName(preferenceName: string): OverridePreferenceName | undefined;
 }

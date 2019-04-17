@@ -16,7 +16,7 @@
 
 import { inject, injectable, postConstruct } from 'inversify';
 import { JSONExt } from '@phosphor/coreutils';
-import { DisposableCollection, MaybePromise, MessageService, Resource, ResourceProvider } from '@theia/core';
+import { MaybePromise, MessageService, Resource, ResourceProvider, Disposable } from '@theia/core';
 import { PreferenceProvider, PreferenceSchemaProvider, PreferenceScope, PreferenceProviderDataChange } from '@theia/core/lib/browser';
 import URI from '@theia/core/lib/common/uri';
 import * as jsoncparser from 'jsonc-parser';
@@ -27,7 +27,6 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
     // tslint:disable-next-line:no-any
     protected preferences: { [key: string]: any } = {};
     protected resource: Promise<Resource>;
-    protected toDisposeOnWorkspaceLocationChanged: DisposableCollection = new DisposableCollection();
 
     @inject(ResourceProvider) protected readonly resourceProvider: ResourceProvider;
     @inject(MessageService) protected readonly messageService: MessageService;
@@ -36,13 +35,6 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
     @postConstruct()
     protected async init(): Promise<void> {
         const uri = await this.getUri();
-
-        // In case if no workspace is opened there are no workspace settings.
-        // There is nothing to contribute to preferences and we just skip it.
-        if (!uri) {
-            this._ready.resolve();
-            return;
-        }
         this.resource = this.resourceProvider(uri);
 
         // Try to read the initial content of the preferences.  The provider
@@ -55,19 +47,13 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
         const resource = await this.resource;
         this.toDispose.push(resource);
         if (resource.onDidChangeContents) {
-            const onDidResourceChanged = resource.onDidChangeContents(() => this.readPreferences());
-            this.toDisposeOnWorkspaceLocationChanged.pushAll([onDidResourceChanged, (await this.resource)]);
-            this.toDispose.push(onDidResourceChanged);
+            this.toDispose.push(resource.onDidChangeContents(() => this.readPreferences()));
         }
-
-        this.toDispose.push(
-            this.schemaProvider.onDidPreferenceSchemaChanged(() => {
-                this.readPreferences();
-            })
-        );
+        this.toDispose.push(Disposable.create(() => this.reset()));
     }
 
-    abstract getUri(root?: URI): MaybePromise<URI | undefined>;
+    abstract getUri(): MaybePromise<URI>;
+    protected abstract getScope(): PreferenceScope;
 
     // tslint:disable-next-line:no-any
     getPreferences(resourceUri?: string): { [key: string]: any } {
@@ -127,8 +113,6 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
         const jsonData = this.parse(content);
         // tslint:disable-next-line:no-any
         const preferences: { [key: string]: any } = {};
-        // tslint:disable-next-line:no-any
-        const notValidPreferences: { [key: string]: any } = {};
         if (typeof jsonData !== 'object') {
             return preferences;
         }
@@ -138,7 +122,6 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
             const preferenceValue = jsonData[preferenceName];
             if (preferenceValue !== undefined && !this.schemaProvider.validate(preferenceName, preferenceValue)) {
                 console.warn(`Preference ${preferenceName} in ${uri} is invalid.`);
-                notValidPreferences[preferenceName] = preferenceValue;
                 continue;
             }
             if (this.schemaProvider.testOverrideValue(preferenceName, preferenceValue)) {
@@ -150,9 +133,6 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
             } else {
                 preferences[preferenceName] = preferenceValue;
             }
-        }
-        if (Object.keys(notValidPreferences).length > 0) {
-            this.onDidInvalidPreferencesReadEmitter.fire(notValidPreferences);
         }
         return preferences;
     }
@@ -196,19 +176,21 @@ export abstract class AbstractResourcePreferenceProvider extends PreferenceProvi
         }
     }
 
-    dispose(): void {
-        const prefChanges: PreferenceProviderDataChange[] = [];
-        for (const prefName of Object.keys(this.preferences)) {
-            const value = this.preferences[prefName];
+    protected reset(): void {
+        const preferences = this.preferences;
+        this.preferences = {};
+        const changes: PreferenceProviderDataChange[] = [];
+        for (const prefName of Object.keys(preferences)) {
+            const value = preferences[prefName];
             if (value !== undefined || value !== null) {
-                prefChanges.push({
+                changes.push({
                     preferenceName: prefName, newValue: undefined, oldValue: value, scope: this.getScope(), domain: this.getDomain()
                 });
             }
         }
-        if (prefChanges.length > 0) {
-            this.emitPreferencesChangedEvent(prefChanges);
+        if (changes.length > 0) {
+            this.emitPreferencesChangedEvent(changes);
         }
-        super.dispose();
     }
+
 }

@@ -335,7 +335,7 @@ export class PreferencesEditorsContainer extends DockPanel {
     }
 
     protected async getWorkspacePreferenceEditorWidget(): Promise<PreferencesEditorWidget | undefined> {
-        const workspacePreferenceUri = await this.workspacePreferenceProvider.getUri();
+        const workspacePreferenceUri = this.workspacePreferenceProvider.getUri();
         const workspacePreferences = workspacePreferenceUri && await this.editorManager.getOrCreateByUri(workspacePreferenceUri) as PreferencesEditorWidget;
 
         if (workspacePreferences) {

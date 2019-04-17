@@ -14,82 +14,90 @@
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
 
-import { inject, injectable, postConstruct } from 'inversify';
+import { inject, injectable, postConstruct, named } from 'inversify';
 import URI from '@theia/core/lib/common/uri';
-import { PreferenceScope, PreferenceProvider, PreferenceProviderPriority } from '@theia/core/lib/browser';
-import { WorkspaceService, WorkspaceData } from '@theia/workspace/lib/browser/workspace-service';
-import { AbstractResourcePreferenceProvider } from './abstract-resource-preference-provider';
+import { DisposableCollection } from '@theia/core/lib/common/disposable';
+import { PreferenceScope, PreferenceProvider } from '@theia/core/lib/browser/preferences';
+import { WorkspaceService } from '@theia/workspace/lib/browser/workspace-service';
+import { WorkspaceFilePreferenceProviderFactory, WorkspaceFilePreferenceProvider } from './workspace-file-preference-provider';
 
 @injectable()
-export class WorkspacePreferenceProvider extends AbstractResourcePreferenceProvider {
+export class WorkspacePreferenceProvider extends PreferenceProvider {
 
     @inject(WorkspaceService)
     protected readonly workspaceService: WorkspaceService;
 
+    @inject(WorkspaceFilePreferenceProviderFactory)
+    protected readonly workspaceFileProviderFactory: WorkspaceFilePreferenceProviderFactory;
+
+    @inject(PreferenceProvider) @named(PreferenceScope.Folder)
+    protected readonly folderPreferenceProvider: PreferenceProvider;
+
+    protected delegate: PreferenceProvider | undefined;
+
     @postConstruct()
     protected async init(): Promise<void> {
-        await super.init();
-        this.workspaceService.onWorkspaceLocationChanged(workspaceFile => {
-            if (workspaceFile && !workspaceFile.isDirectory) {
-                this.toDisposeOnWorkspaceLocationChanged.dispose();
-                super.init();
-            }
-        });
+        this._ready.resolve();
+        this.update();
+        this.workspaceService.onWorkspaceLocationChanged(() => this.update());
     }
 
-    async getUri(): Promise<URI | undefined> {
-        await this.workspaceService.roots;
+    getUri(): URI | undefined {
+        // TODO get from underlying provider
         const workspace = this.workspaceService.workspace;
         if (workspace) {
             const uri = new URI(workspace.uri);
+            // TODO .vscode/settings.json
             return workspace.isDirectory ? uri.resolve('.theia').resolve('settings.json') : uri;
         }
+        return undefined;
+    }
+
+    protected readonly toDisposeOnUpdate = new DisposableCollection();
+    protected update(): void {
+        const delegate = this.createDelegate();
+        if (delegate !== delegate) {
+            this.toDisposeOnUpdate.dispose();
+            this.toDispose.push(this.toDisposeOnUpdate);
+
+            this.delegate = delegate;
+
+            if (delegate instanceof WorkspaceFilePreferenceProvider) {
+                this.toDisposeOnUpdate.pushAll([
+                    delegate,
+                    delegate.onDidPreferencesChanged(changes => this.onDidPreferencesChangedEmitter.fire(changes))
+                ]);
+            }
+            this.onDidPreferencesChangedEmitter.fire(undefined);
+        }
+    }
+    protected createDelegate(): PreferenceProvider | undefined {
+        const workspace = this.workspaceService.workspace;
+        if (!workspace) {
+            return undefined;
+        }
+        if (workspace.isDirectory) {
+            return this.folderPreferenceProvider;
+        }
+        return this.workspaceFileProviderFactory({
+            workspaceUri: new URI(workspace.uri)
+        });
     }
 
     canProvide(preferenceName: string, resourceUri?: string): { priority: number, provider: PreferenceProvider } {
-        const value = this.get(preferenceName);
-        if (value === undefined || value === null) {
-            return super.canProvide(preferenceName, resourceUri);
-        }
-        if (resourceUri) {
-            const folderPaths = this.getDomain().map(f => new URI(f).path);
-            if (folderPaths.every(p => p.relativity(new URI(resourceUri).path) < 0)) {
-                return super.canProvide(preferenceName, resourceUri);
-            }
-        }
-
-        return { priority: PreferenceProviderPriority.Workspace, provider: this };
+        return this.delegate ? this.delegate.canProvide(preferenceName, resourceUri) : super.canProvide(preferenceName, resourceUri);
     }
 
     // tslint:disable-next-line:no-any
-    protected parse(content: string): any {
-        const data = super.parse(content);
-        if (this.workspaceService.saved) {
-            if (WorkspaceData.is(data)) {
-                return data.settings || {};
-            }
-        }
-        return data;
+    getPreferences(resourceUri?: string): { [p: string]: any } {
+        return this.delegate ? this.delegate.getPreferences(resourceUri) : {};
     }
 
-    protected getPath(preferenceName: string): string[] {
-        if (this.workspaceService.saved) {
-            return ['settings', preferenceName];
+    // tslint:disable-next-line:no-any
+    async setPreference(preferenceName: string, value: any, resourceUri?: string): Promise<void> {
+        if (this.delegate) {
+            await this.delegate.setPreference(preferenceName, value, resourceUri);
         }
-        return super.getPath(preferenceName);
     }
 
-    protected getScope() {
-        return PreferenceScope.Workspace;
-    }
-
-    getDomain(): string[] {
-        const workspace = this.workspaceService.workspace;
-        if (workspace) {
-            return workspace.isDirectory
-                ? [workspace.uri]
-                : this.workspaceService.tryGetRoots().map(r => r.uri).concat([workspace.uri]); // workspace file is treated as part of the workspace
-        }
-        return [];
-    }
 }
