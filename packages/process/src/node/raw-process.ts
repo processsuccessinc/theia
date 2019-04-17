@@ -106,8 +106,10 @@ export class RawProcess extends Process {
             }
 
             this.process.on('error', (error: NodeJS.ErrnoException) => {
+                const reason: string = error.code || 'Unknown error';
                 this.emitOnError({
-                    code: error.code || 'Unknown error',
+                    ...new Error(reason),
+                    code: reason,
                 });
             });
             this.process.on('exit', (exitCode: number, signal: string) => {

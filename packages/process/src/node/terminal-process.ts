@@ -56,7 +56,10 @@ export class TerminalProcess extends Process {
                 if (reason === undefined) {
                     this.emitOnStarted();
                 } else {
-                    this.emitOnError({ code: reason });
+                    this.emitOnError({
+                        ...new Error(reason),
+                        code: reason
+                    });
                 }
             });
 
