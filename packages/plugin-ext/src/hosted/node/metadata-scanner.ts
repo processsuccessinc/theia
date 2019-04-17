@@ -30,7 +30,12 @@ export class MetadataScanner {
     }
 
     getPluginMetadata(plugin: PluginPackage): PluginMetadata {
+        // todo 1
+        console.log(' >>>>>>>>>>>>>>> ', JSON.stringify(plugin));
+
         const scanner = this.getScanner(plugin);
+        console.log('>>>> model >>> ', JSON.stringify(scanner.getModel(plugin)));
+        console.log('>>>> lifecycle >>>> ', JSON.stringify(scanner.getLifecycle(plugin)));
         return {
             host: 'main',
             source: plugin,

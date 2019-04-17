@@ -64,6 +64,7 @@ export class PluginTheiaDirectoryHandler implements PluginDeployerDirectoryHandl
     handle(context: PluginDeployerDirectoryHandlerContext): Promise<any> {
         const types: PluginDeployerEntryType[] = [];
         const packageJson: PluginPackage = context.pluginEntry().getValue('package.json');
+        // DOU!!!!
         if (packageJson.theiaPlugin && packageJson.theiaPlugin.backend) {
             types.push(PluginDeployerEntryType.BACKEND);
         }

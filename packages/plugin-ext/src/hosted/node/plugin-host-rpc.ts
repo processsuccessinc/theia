@@ -25,6 +25,7 @@ import { DebugExtImpl } from '../../plugin/node/debug/debug';
 import { EditorsAndDocumentsExtImpl } from '../../plugin/editors-and-documents';
 import { WorkspaceExtImpl } from '../../plugin/workspace';
 import { MessageRegistryExt } from '../../plugin/message-registry';
+// import { isBackendPlugin } from '../../common/plugin-validator';
 
 /**
  * Handle the RPC calls.
@@ -110,8 +111,18 @@ export class PluginHostRPC {
                 for (const plg of raw) {
                     const pluginModel = plg.model;
                     const pluginLifecycle = plg.lifecycle;
-                    if (pluginModel.entryPoint!.backend) {
 
+                    console.log('>>>>>> Try to init!!!');
+                    if (pluginModel.entryPoint!.frontend) {
+                        foreign.push({
+                            pluginPath: pluginModel.entryPoint.frontend!,
+                            pluginFolder: plg.source.packagePath,
+                            model: pluginModel,
+                            lifecycle: pluginLifecycle,
+                            rawModel: plg.source
+                        });
+                    } else {
+                        console.log('>>>>>>>>>>>>> Yes init!!!');
                         let backendInitPath = pluginLifecycle.backendInitPath;
                         // if no init path, try to init as regular Theia plugin
                         if (!backendInitPath) {
@@ -129,14 +140,6 @@ export class PluginHostRPC {
                         self.initContext(backendInitPath, plugin);
 
                         result.push(plugin);
-                    } else {
-                        foreign.push({
-                            pluginPath: pluginModel.entryPoint.frontend!,
-                            pluginFolder: plg.source.packagePath,
-                            model: pluginModel,
-                            lifecycle: pluginLifecycle,
-                            rawModel: plg.source
-                        });
                     }
                 }
                 return [result, foreign];

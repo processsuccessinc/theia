@@ -188,13 +188,13 @@ export class HostedPluginSupport {
     }
 
     private initContributions(pluginsMetadata: PluginMetadata[]): [boolean, boolean] {
+        console.log('Init contributions !!!');
         const result: [boolean, boolean] = [false, false];
         for (const plugin of pluginsMetadata) {
             if (plugin.model.entryPoint.frontend) {
                 result[0] = true;
-            }
-
-            if (plugin.model.entryPoint.backend) {
+            } else {
+                console.log('init like backend');
                 result[1] = true;
             }
 
