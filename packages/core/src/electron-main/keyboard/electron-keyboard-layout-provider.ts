@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (C) 2018 Red Hat, Inc. and others.
+ * Copyright (C) 2019 TypeFox and others.
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,15 +13,23 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR GPL-2.0 WITH Classpath-exception-2.0
  ********************************************************************************/
-import { Event } from 'vscode-jsonrpc';
 
-/**
- * Provides a token (for now it's a NONE)
- */
-// tslint:disable-next-line:no-any
-export function createToken(): any {
-    return Object.freeze({
-        isCancellationRequested: false,
-        onCancellationRequested: Event.None
-    });
+import * as nativeKeymap from 'native-keymap';
+import { injectable } from 'inversify';
+import { KeyboardLayoutProvider, NativeKeyboardLayout } from '../../common/keyboard/keyboard-layout-provider';
+
+@injectable()
+export class ElectronKeyboardLayoutProvider implements KeyboardLayoutProvider {
+
+    getNativeLayout(): Promise<NativeKeyboardLayout> {
+        return Promise.resolve(this.getNativeLayoutSync());
+    }
+
+    protected getNativeLayoutSync(): NativeKeyboardLayout {
+        return {
+            info: nativeKeymap.getCurrentKeyboardLayout(),
+            mapping: nativeKeymap.getKeyMap()
+        };
+    }
+
 }
