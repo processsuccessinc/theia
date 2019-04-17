@@ -25,7 +25,6 @@ import { DebugExtImpl } from '../../plugin/node/debug/debug';
 import { EditorsAndDocumentsExtImpl } from '../../plugin/editors-and-documents';
 import { WorkspaceExtImpl } from '../../plugin/workspace';
 import { MessageRegistryExt } from '../../plugin/message-registry';
-// import { isBackendPlugin } from '../../common/plugin-validator';
 
 /**
  * Handle the RPC calls.
@@ -112,7 +111,6 @@ export class PluginHostRPC {
                     const pluginModel = plg.model;
                     const pluginLifecycle = plg.lifecycle;
 
-                    console.log('>>>>>> Try to init!!!');
                     if (pluginModel.entryPoint!.frontend) {
                         foreign.push({
                             pluginPath: pluginModel.entryPoint.frontend!,
@@ -122,7 +120,6 @@ export class PluginHostRPC {
                             rawModel: plg.source
                         });
                     } else {
-                        console.log('>>>>>>>>>>>>> Yes init!!!');
                         let backendInitPath = pluginLifecycle.backendInitPath;
                         // if no init path, try to init as regular Theia plugin
                         if (!backendInitPath) {

@@ -67,9 +67,7 @@ export class HostedPluginSupport {
     }
 
     runPlugin(plugin: PluginModel): void {
-        console.log('>>>> run plugin!!!');
         if (!plugin.entryPoint.frontend) {
-            console.log('>>>>>>>>>>>>>>>>>>>>>>>>>I was really run!!!!!1');
             this.runPluginServer();
         }
     }

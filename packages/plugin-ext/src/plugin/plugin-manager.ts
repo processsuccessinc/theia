@@ -92,8 +92,8 @@ export class PluginManagerExtImpl implements PluginManagerExt, PluginManager {
         this.storageProxy = this.rpc.set(
             MAIN_RPC_CONTEXT.STORAGE_EXT,
             new KeyValueStorageProxy(this.rpc.getProxy(PLUGIN_RPC_CONTEXT.STORAGE_MAIN),
-                pluginInit.globalState,
-                pluginInit.workspaceState)
+                                     pluginInit.globalState,
+                                     pluginInit.workspaceState)
         );
 
         // init query parameters
@@ -117,16 +117,12 @@ export class PluginManagerExtImpl implements PluginManagerExt, PluginManager {
 
         // run plugins
         for (const plugin of plugins) {
-            console.log('try to load plugin ');
-            console.log('>>>>>>>>>>>>>>>>>> plugin path!!!', plugin.pluginPath);
-
             if (!plugin.pluginPath) {
                 continue;
             }
-            console.log('oh now');
             const pluginMain = this.host.loadPlugin(plugin);
+            // able to load the plug-in ?
             if (pluginMain !== undefined) {
-                console.log('>>>>>>> test ');
                 this.startPlugin(plugin, configStorage, pluginMain);
             } else {
                 console.error(`Unable to load a plugin from "${plugin.pluginPath}"`);

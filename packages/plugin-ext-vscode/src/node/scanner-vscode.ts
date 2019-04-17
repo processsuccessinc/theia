@@ -21,18 +21,12 @@ import { TheiaPluginScanner } from '@theia/plugin-ext/lib/hosted/node/scanners/s
 @injectable()
 export class VsCodePluginScanner extends TheiaPluginScanner implements PluginScanner {
     private readonly VSCODE_TYPE: PluginEngine = 'vscode';
-    // private readonly DEFAULT_EXTENSION_MAIN_PATH = './out/extension.js';
 
     get apiType(): PluginEngine {
         return this.VSCODE_TYPE;
     }
 
     getModel(plugin: PluginPackage): PluginModel {
-        // if (!plugin.main) {
-        //     console.log('??????????????????????????? Try to set up default extension path');
-        //     plugin.main = this.DEFAULT_EXTENSION_MAIN_PATH;
-        //     // todo check if this path is really exists, otherwise log error!!!
-        // }
         const result: PluginModel = {
             id: `${plugin.publisher}.${plugin.name}`,
             name: plugin.name,
